@@ -7,16 +7,15 @@ function openWindow(type) {
     win.style.display = "block";
     content.innerHTML = ""; 
 
-    // --- SECTION TEXTE (.txt) ---
-    // Sur ta capture, ils s'appellent code.txt et code2.txt
-    if (type === "code" || type === "code2") {
-        const fichier = (type === "code") ? "code.txt" : "code2.txt";
-        title.textContent = (type === "code") ? "NainJaune.py" : "Explications.txt";
+// --- SECTION TEXTE (Correction Finale) ---
+    if (type === "code") {
+        title.textContent = "NainJaune.py";
         content.innerHTML = "<pre id='codeDisplay'>Chargement du fichier...</pre>";
 
-        fetch(fichier)
+        // On cherche "code.txt" directement à la racine
+        fetch("code.txt") 
             .then(response => {
-                if (!response.ok) throw new Error("Fichier non trouvé");
+                if (!response.ok) throw new Error("Fichier code.txt non trouvé");
                 return response.text();
             })
             .then(data => {
@@ -27,6 +26,23 @@ function openWindow(type) {
             });
     }
 
+    if (type === "code2") {
+        title.textContent = "Explications.txt";
+        content.innerHTML = "<pre id='codeDisplay'>Chargement du fichier...</pre>";
+
+        // On cherche "code2.txt" directement à la racine
+        fetch("code2.txt") 
+            .then(response => {
+                if (!response.ok) throw new Error("Fichier code2.txt non trouvé");
+                return response.text();
+            })
+            .then(data => {
+                document.getElementById("codeDisplay").innerText = data;
+            })
+            .catch(err => {
+                document.getElementById("codeDisplay").innerText = "Erreur : " + err.message;
+            });
+    }
     // --- SECTION IMAGES ---
     // Tous tes noms sont en minuscules sans double .png sur ta capture
     else if (type === "img1") {
