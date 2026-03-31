@@ -1,0 +1,452 @@
+import pygame
+import random
+
+class Carte:
+    def __init__(self, valeur, couleur):
+        self.valeur = valeur
+        self.couleur = couleur
+        self.nb_passes = 0
+
+    def code(self):
+        valeurs_map = {11: "J",12: "Q",13: "K",14: "A"}
+        v = valeurs_map.get(self.valeur, str(self.valeur))
+        return self.couleur + v
+
+    def __repr__(self):
+        return self.code()
+
+class Paquet:
+    def __init__(self):
+        couleurs = ['H', 'D', 'C', 'S']
+        valeurs = list(range(2, 15))
+        self.pile = []
+        for valeur in valeurs:
+            for couleur in couleurs:
+                self.pile.append(Carte(valeur, couleur))
+
+    def distribuer(self, nb_joueurs):
+        random.shuffle(self.pile)
+        joueurs = [[] for _ in range(nb_joueurs)]
+        while self.pile:
+            for j in joueurs:
+                if self.pile:
+                    j.append(self.pile.pop())
+        for main in joueurs:
+            main.sort(key=lambda c: (1 if c.valeur == 14 else c.valeur))
+        return joueurs
+
+class Jeu:
+    def __init__(self, nb_joueurs):
+        paquet = Paquet()
+        self.joueurs = paquet.distribuer(nb_joueurs)
+        self.nb_joueurs = nb_joueurs
+        self.joueur_actuel = 0
+        self.valeur_attendue = 14
+        self.nb_passes = 0
+
+    def carte_jouable(self, carte):
+        return carte.valeur == self.valeur_attendue
+
+    def jouer_carte(self, joueur_index, carte_index):
+        carte = self.joueurs[joueur_index][carte_index]
+        if not self.carte_jouable(carte):
+            return None
+        self.joueurs[joueur_index].pop(carte_index)
+        if self.valeur_attendue == 14:
+            self.valeur_attendue = 2
+        elif self.valeur_attendue == 13:
+            self.valeur_attendue = 14
+        else:
+            self.valeur_attendue += 1
+        self.nb_passes = 0
+        self.joueur_actuel = (self.joueur_actuel + 1) % self.nb_joueurs
+        return carte
+
+    def verifier_gain_special(self, carte):
+        mapping = {('H', 13): 0,('S', 12): 1,('D', 10): 2,('C', 11): 3,('D', 7): 4}
+        return mapping.get((carte.couleur, carte.valeur), None)
+
+    def passer(self):
+        self.nb_passes += 1
+        if self.nb_passes >= self.nb_joueurs:
+            if self.valeur_attendue == 14:
+                self.valeur_attendue = 2
+            elif self.valeur_attendue == 13:
+                self.valeur_attendue = 14
+            else:
+                self.valeur_attendue += 1
+            print("Nouvelle valeur demandée :", self.valeur_attendue)
+            self.nb_passes = 0
+        self.joueur_actuel = (self.joueur_actuel + 1) % self.nb_joueurs
+
+
+
+pygame.init()
+pygame.mixer.init()
+WIDTH, HEIGHT = 1200, 800
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Nain Jaune - Ordre personnalisé")
+
+MENU = "menu"
+SETTINGS = "settings"
+CREDITS = "credits"
+MISE = "mise"
+JEU = "jeu"
+
+etat = MENU
+
+musique_actuelle = None
+
+FONT = pygame.font.SysFont("arial", 24)
+
+plateau = pygame.image.load("plateau.png")
+menu_img = pygame.image.load("menu.png")
+menu_img = pygame.transform.scale(menu_img, (WIDTH, HEIGHT))
+
+settings_img = pygame.image.load("setting.png")
+settings_img = pygame.transform.scale(settings_img, (WIDTH, HEIGHT))
+
+credits_img = pygame.image.load("credits.png")
+credits_img = pygame.transform.scale(credits_img, (WIDTH, HEIGHT))
+
+plateau_mise = pygame.image.load("plateau mise.png")
+plateau_mise = pygame.transform.scale(plateau_mise, (WIDTH, HEIGHT))
+
+miser_img = pygame.image.load("miser.png")
+miser_img = pygame.transform.scale(miser_img, (300, 300))
+miser_rect = miser_img.get_rect(center=(WIDTH//2 - 150, HEIGHT - 150))
+
+fin_mise_img = pygame.image.load("fin de mise.png")
+fin_mise_img = pygame.transform.scale(fin_mise_img, (300, 300))
+fin_mise_rect = fin_mise_img.get_rect(center=(WIDTH//2 + 150, HEIGHT - 150))
+jouer_img = pygame.image.load("jouer.png")
+jouer_img = pygame.transform.scale(jouer_img, (300, 120))
+jouer_rect = jouer_img.get_rect(center=(920, 400))
+
+settings_btn_img = pygame.image.load("settings_bouton.png")
+settings_btn_img = pygame.transform.scale(settings_btn_img, (250, 100))
+settings_btn_rect = settings_btn_img.get_rect(center=(950, 470))
+
+credits_btn_img = pygame.image.load("credits_bouton.png")
+credits_btn_img = pygame.transform.scale(credits_btn_img, (250, 100))
+credits_btn_rect = credits_btn_img.get_rect(center=(900, 540))
+
+retour_img = pygame.image.load("retour.png").convert_alpha()
+retour_img = pygame.transform.scale(retour_img, (200, 400))
+retour_rect = retour_img.get_rect(topleft=(20, 20))
+
+rejouer_img = pygame.image.load("rejouer.png")
+rejouer_img = pygame.transform.scale(rejouer_img, (200, 80))
+rejouer_rect = rejouer_img.get_rect(center=(WIDTH//2, HEIGHT//2 + 150))
+
+jeton_img = pygame.image.load("jeton.png").convert_alpha()
+jeton_img = pygame.transform.scale(jeton_img, (40, 40))
+
+positions_cases = [(350, 230),(850, 230),(350, 600),(950, 650),(600, 400)]
+
+cases_mise = []
+for pos in positions_cases:
+    rect = pygame.Rect(0, 0, 120, 120)
+    rect.center = pos
+    cases_mise.append(rect)
+
+
+mises = [0, 0, 0, 0, 0]
+
+phase_mise = True
+case_selectionnee = None
+joueur_mise = 0
+
+plateau = pygame.transform.scale(plateau, (WIDTH, HEIGHT))
+
+CARD_WIDTH = 80
+CARD_HEIGHT = 120
+BUTTON_WIDTH = 220
+BUTTON_HEIGHT = 120
+passer_img = pygame.image.load("passer.png")
+passer_img = pygame.transform.scale(passer_img,(BUTTON_WIDTH, BUTTON_HEIGHT))
+passer_rect = passer_img.get_rect()
+passer_rect.center = (WIDTH//2, HEIGHT - 220)
+
+def load_cards():
+    cards = {}
+    couleurs = ['H', 'D', 'C', 'S']
+    valeurs = list(range(2, 15))
+    for valeur in valeurs:
+        for couleur in couleurs:
+            temp = Carte(valeur, couleur)
+            name = temp.code()  # H2, D2 etc
+            path = f"cards/{name}.png"
+            image = pygame.image.load(path)
+            image = pygame.transform.scale(image, (CARD_WIDTH, CARD_HEIGHT))
+            cards[name] = image
+    return cards
+
+
+cards_images = load_cards()
+dos_carte_img = pygame.image.load("dos_carte.png").convert_alpha()
+dos_carte_img = pygame.transform.scale(dos_carte_img, (CARD_WIDTH, CARD_HEIGHT))
+
+jeu = Jeu(4)
+def reset_partie():
+    global jeu, mises, jetons_joueurs, joueur_mise, etat, musique_actuelle
+    jeu = Jeu(4)
+    mises = [0, 0, 0, 0, 0]
+    joueur_mise = 0
+    etat = MISE
+    musique_actuelle = None
+jetons_joueurs = [20, 20, 20, 20]
+played_cards = []
+running = True
+clock = pygame.time.Clock()
+
+
+def draw_mise():
+    screen.blit(plateau_mise, (0, 0))
+    for i, rect in enumerate(cases_mise):
+        for j in range(mises[i]):
+            offset = j * 3
+            jeton_rect = jeton_img.get_rect(center=rect.center)
+            jeton_rect.x += offset
+            jeton_rect.y -= offset
+            screen.blit(jeton_img, jeton_rect)
+    positions_jetons = [(WIDTH//2, HEIGHT - 200),(120, HEIGHT//2),(WIDTH//2, 40),(WIDTH - 120, HEIGHT//2)]
+    for i in range(4):
+        texte = FONT.render(f"{jetons_joueurs[i]} jetons", True, (255,255,0))
+        rect = texte.get_rect(center=positions_jetons[i])
+        screen.blit(texte, rect)
+    texte = FONT.render(f"Joueur {joueur_mise + 1} mise", True, (255,255,0))
+    screen.blit(texte, (WIDTH//2 - 120, 80))
+    screen.blit(miser_img, miser_rect)
+    screen.blit(fin_mise_img, fin_mise_rect)
+    pygame.display.flip()
+
+def draw_menu():
+    screen.blit(menu_img, (0, 0))
+    screen.blit(jouer_img, jouer_rect)
+    screen.blit(settings_btn_img, settings_btn_rect)
+    screen.blit(credits_btn_img, credits_btn_rect)
+    pygame.display.flip()
+
+def draw_settings():
+    screen.blit(settings_img, (0, 0))
+    screen.blit(retour_img, retour_rect)
+    pygame.display.flip()
+
+def draw_credits():
+    screen.blit(credits_img, (0, 0))
+    screen.blit(retour_img, retour_rect)
+    pygame.display.flip()
+
+def draw():
+    screen.blit(plateau, (0, 0))
+    x_center = WIDTH // 2 - 200
+    for i, carte in enumerate(played_cards[-5:]):
+        screen.blit(cards_images[carte.code()],(x_center + i * 90, HEIGHT // 2 - 60))
+    main = jeu.joueurs[0]
+    spacing = 50
+    total_width = len(main) * spacing
+    start_x = WIDTH // 2 - total_width // 2
+    for i, carte in enumerate(main):
+        if jeu.joueur_actuel == 0:
+            img = cards_images[carte.code()]
+        else:
+            img = dos_carte_img
+        screen.blit(img, (start_x + i * spacing, HEIGHT - 160))
+    main = jeu.joueurs[1]
+    spacing = 30
+    total_height = len(main) * spacing
+    start_y = HEIGHT // 2 - total_height // 2
+    for i, carte in enumerate(main):
+        if jeu.joueur_actuel == 1:
+            img = pygame.transform.rotate(cards_images[carte.code()], 90)
+        else:
+            img = pygame.transform.rotate(dos_carte_img, 90)
+        screen.blit(img, (50, start_y + i * spacing))
+    main = jeu.joueurs[2]
+    spacing = 40
+    total_width = len(main) * spacing
+    start_x = WIDTH // 2 - total_width // 2
+    for i, carte in enumerate(main):
+        if jeu.joueur_actuel == 2:
+            img = cards_images[carte.code()]
+        else:
+            img = dos_carte_img
+        screen.blit(img, (start_x + i * spacing, 60))
+    main = jeu.joueurs[3]
+    spacing = 30
+    total_height = len(main) * spacing
+    start_y = HEIGHT // 2 - total_height // 2
+    for i, carte in enumerate(main):
+        if jeu.joueur_actuel == 3:
+            img = pygame.transform.rotate(cards_images[carte.code()], -90)
+        else:
+            img = pygame.transform.rotate(dos_carte_img, -90)
+        screen.blit(img, (WIDTH - 130, start_y + i * spacing))
+    screen.blit(passer_img, passer_rect)
+    positions_jetons = [(WIDTH//2, HEIGHT - 200),(120, HEIGHT//2),(WIDTH//2, 40),(WIDTH - 120, HEIGHT//2)]
+    for i in range(4):
+        texte = FONT.render(f"{jetons_joueurs[i]} jetons", True, (255,255,0))
+        rect = texte.get_rect(center=positions_jetons[i])
+        screen.blit(texte, rect)
+    pygame.display.flip()
+
+
+while running:
+    clock.tick(30)
+    if etat == MENU:
+        if musique_actuelle != "menu":
+            pygame.mixer.music.load("musique lobby.mp3")
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play(-1)
+            musique_actuelle = "menu"
+        draw_menu()
+    elif etat == SETTINGS:
+        draw_settings()
+    elif etat == CREDITS:
+        draw_credits()
+    elif etat == MISE:
+        draw_mise()
+    elif etat == JEU:
+        if musique_actuelle != "jeu":
+            pygame.mixer.music.load("musique nateo.mp3")
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play(-1)
+            musique_actuelle = "jeu"
+        draw()
+    elif etat == "FIN":
+        screen.fill((0,0,0))
+        texte = FONT.render("Partie terminée !", True, (255,255,0))
+        rect = texte.get_rect(center=(WIDTH//2, HEIGHT//2 - 100))
+        screen.blit(texte, rect)
+        screen.blit(rejouer_img, rejouer_rect)
+        pygame.display.flip()
+    for event in pygame.event.get():
+        if event.type == pygame.MOUSEBUTTONDOWN and etat == "FIN":
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            if rejouer_rect.collidepoint(mouse_x, mouse_y):
+                reset_partie()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if etat == MENU:
+                if jouer_rect.collidepoint(event.pos):
+                    etat = MISE
+                elif settings_btn_rect.collidepoint(event.pos):
+                    etat = SETTINGS
+                elif credits_btn_rect.collidepoint(event.pos):
+                    etat = CREDITS
+            elif etat == SETTINGS:
+                if retour_rect.collidepoint(event.pos):
+                    etat = MENU
+            elif etat == CREDITS:
+                if retour_rect.collidepoint(event.pos):
+                    etat = MENU
+        if event.type == pygame.MOUSEBUTTONDOWN and etat == MISE:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            for i, rect in enumerate(cases_mise):
+                if rect.collidepoint(mouse_x, mouse_y):
+                    case_selectionnee = i
+            if miser_rect.collidepoint(mouse_x, mouse_y):
+                if case_selectionnee is not None:
+                    if jetons_joueurs[joueur_mise] > 0:
+                        mises[case_selectionnee] += 1
+                        jetons_joueurs[joueur_mise] -= 1
+            if fin_mise_rect.collidepoint(mouse_x, mouse_y):
+                joueur_mise += 1
+                case_selectionnee = None
+                if joueur_mise >= 4:
+                    etat = JEU
+                else:
+                    print(f"Au tour du joueur {joueur_mise + 1} de miser")
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.MOUSEBUTTONDOWN and etat == JEU:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            j = jeu.joueur_actuel
+            main = jeu.joueurs[j]
+            carte_jouee_ce_tour = False
+            if j == 0:
+                spacing = 50
+                total_width = len(main) * spacing
+                start_x = WIDTH // 2 - total_width // 2
+                for i in reversed(range(len(main))):
+                    rect = pygame.Rect(start_x + i * spacing,HEIGHT - 160,CARD_WIDTH,CARD_HEIGHT)
+                    if rect.collidepoint(mouse_x, mouse_y):
+                        carte_jouee = jeu.jouer_carte(j, i)
+                        if carte_jouee:
+                            carte_jouee_ce_tour = True
+                            played_cards.append(carte_jouee)
+                            case = jeu.verifier_gain_special(carte_jouee)
+                            if case is not None:
+                                gain = mises[case]
+                                jetons_joueurs[j] += gain
+                                mises[case] = 0
+                                print(f"Joueur {j+1} récupère {gain} jetons !")
+                        break
+            elif j == 1:
+                spacing = 30
+                total_height = len(main) * spacing
+                start_y = HEIGHT // 2 - total_height // 2
+                for i in reversed(range(len(main))):
+                    rect = pygame.Rect(50,start_y + i * spacing,CARD_HEIGHT,CARD_WIDTH)
+                    if rect.collidepoint(mouse_x, mouse_y):
+                        carte_jouee = jeu.jouer_carte(j, i)
+                        if carte_jouee:
+                            carte_jouee_ce_tour = True
+                            played_cards.append(carte_jouee)
+                            case = jeu.verifier_gain_special(carte_jouee)
+                            if case is not None:
+                                gain = mises[case]
+                                jetons_joueurs[j] += gain
+                                mises[case] = 0
+                                print(f"Joueur {j+1} récupère {gain} jetons !")
+                        break
+            elif j == 2:
+                spacing = 40
+                total_width = len(main) * spacing
+                start_x = WIDTH // 2 - total_width // 2
+                for i in reversed(range(len(main))):
+                    rect = pygame.Rect(start_x + i * spacing,60,CARD_WIDTH,CARD_HEIGHT)
+                    if rect.collidepoint(mouse_x, mouse_y):
+                        carte_jouee = jeu.jouer_carte(j, i)
+                        if carte_jouee:
+                            carte_jouee_ce_tour = True
+                            played_cards.append(carte_jouee)
+                            case = jeu.verifier_gain_special(carte_jouee)
+                            if case is not None:
+                                gain = mises[case]
+                                jetons_joueurs[j] += gain
+                                mises[case] = 0
+                                print(f"Joueur {j+1} récupère {gain} jetons !")
+                        break
+            elif j == 3:
+                spacing = 30
+                total_height = len(main) * spacing
+                start_y = HEIGHT // 2 - total_height // 2
+                for i in reversed(range(len(main))):
+                    rect = pygame.Rect(WIDTH - 130,start_y + i * spacing,CARD_HEIGHT,CARD_WIDTH)
+                    if rect.collidepoint(mouse_x, mouse_y):
+                        carte_jouee = jeu.jouer_carte(j, i)
+                        if carte_jouee:
+                            carte_jouee_ce_tour = True
+                            played_cards.append(carte_jouee)
+                            case = jeu.verifier_gain_special(carte_jouee)
+                            if case is not None:
+                                gain = mises[case]
+                                jetons_joueurs[j] += gain
+                                mises[case] = 0
+                                print(f"Joueur {j+1} récupère {gain} jetons !")
+                        break
+            if not carte_jouee_ce_tour and passer_rect.collidepoint(mouse_x, mouse_y):
+                jeu.passer()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_m:
+                pygame.mixer.music.pause()
+            if event.key == pygame.K_r:
+                pygame.mixer.music.unpause()
+    for i in range(4):
+        if len(jeu.joueurs[i]) == 0:
+            print(f"Le joueur {i+1} gagne !")
+            etat = "FIN"
+            break
+
+pygame.quit()
