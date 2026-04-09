@@ -4,7 +4,6 @@ body {
     font-family: "MS Sans Serif", Arial, sans-serif;
 }
 
-/* ===== BUREAU ===== */
 .desktop {
     display: flex;
     flex-direction: column;
@@ -14,7 +13,6 @@ body {
     padding: 20px;
 }
 
-/* ===== ICONES ===== */
 .icon {
     width: 90px;
     text-align: center;
@@ -40,12 +38,10 @@ body {
     object-fit: contain;
 }
 
-/* effet hover propre */
 .icon:hover {
     background: rgba(255, 255, 255, 0.2);
 }
 
-/* ===== FENETRE ===== */
 .window {
     width: 500px;
     background: #c0c0c0;
@@ -62,7 +58,6 @@ body {
     box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* barre de titre */
 .title-bar {
     background: navy;
     color: white;
@@ -76,7 +71,6 @@ body {
     cursor: move;
 }
 
-/* bouton fermer */
 .close {
     background: #c0c0c0;
     border: 1px solid black;
@@ -84,12 +78,10 @@ body {
     cursor: pointer;
 }
 
-/* contenu fenêtre */
 .window-content {
     padding: 10px;
 }
 
-/* ===== CODE ===== */
 pre {
     background: black;
     color: #00ff00;
@@ -106,7 +98,6 @@ pre {
     border: 2px inset gray;
 }
 
-/* ===== BARRE DES TACHES ===== */
 .taskbar {
     position: fixed;
     bottom: 0;
