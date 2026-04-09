@@ -1,4 +1,3 @@
-// ===== OUVRIR FENÊTRE =====
 function openWindow(type) {
     const win = document.getElementById("mainWindow");
     const content = document.getElementById("window-content");
@@ -7,12 +6,10 @@ function openWindow(type) {
     win.style.display = "block";
     content.innerHTML = ""; 
 
-// --- SECTION TEXTE (Correction Finale) ---
     if (type === "code") {
         title.textContent = "NainJaune.py";
         content.innerHTML = "<pre id='codeDisplay'>Chargement du fichier...</pre>";
 
-        // On cherche "code.txt" directement à la racine
         fetch("code.txt") 
             .then(response => {
                 if (!response.ok) throw new Error("Fichier code.txt non trouvé");
@@ -30,7 +27,6 @@ function openWindow(type) {
         title.textContent = "Explications.txt";
         content.innerHTML = "<pre id='codeDisplay'>Chargement du fichier...</pre>";
 
-        // On cherche "code2.txt" directement à la racine
         fetch("code2.txt") 
             .then(response => {
                 if (!response.ok) throw new Error("Fichier code2.txt non trouvé");
@@ -43,8 +39,6 @@ function openWindow(type) {
                 document.getElementById("codeDisplay").innerText = "Erreur : " + err.message;
             });
     }
-    // --- SECTION IMAGES ---
-    // Tous tes noms sont en minuscules sans double .png sur ta capture
     else if (type === "img1") {
         title.textContent = "Plateau";
         content.innerHTML = `<img src="images/plateau.png" style="max-width:100%;">`;
